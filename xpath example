@@ -1,0 +1,22 @@
+from lxml import html, etree
+
+log = """<!DOCTYPE HTML>
+<html>
+ <head>
+     <meta charset="utf-8">
+  <title>Тег А</title>
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" type="text/css" rel="stylesheet"/>
+ </head>
+ <body>
+  <p><a href="images/xxx.jpg">Посмотрите на мою фотографию!</a></p>
+  <p><a href="tip.html">Как сделать такое же фото?</a></p>
+  <p><a href="http://www.photos.com">Полезные статьи по фотографии</a></p>
+</body>
+</html>"""
+root = html.fromstring(log)
+links = root.xpath('//*[@href]')
+for i in links:
+  if not i.attrib['href'].startswith("http"):
+    # buff = i.attrib['href']
+    i.attrib['href'] = "http://" + i.attrib['href']
+print(etree.tostring(root).decode())
