@@ -1,7 +1,8 @@
-from lxml import html
-import requests
+from lxml import etree
 import re
 import asyncio
+import aiohttp
+import json
 
 
 class Themes(object):
@@ -17,26 +18,36 @@ class Themes(object):
     def parsetheme(self):
         currency = ["usd", "грн", "гривен", "гривень", "uah", "eur", "євро", "евро"]
         url = self.url
-        root = html.fromstring(requests.get(url).text)
+        page = yield from get(url)
+        root = etree.HTML(page)
         text = root.xpath('//div[@class="content"]')[0].xpath('./text()')
         text = " ".join(text)
-        expr = re.compile(r'(\d+)\s*([a-zA-Zа-яА-Я]+)')
+        expr = re.compile(r'([\d,.]+)\s*([a-zA-Zа-яА-Я]+)')
         price = re.findall(expr, text)
         price = list(filter(lambda x: True if x[1] in currency else False, price))
-        if len(price) == 1:  # я не знав що робити в випадках коли знайшлось декілька цін, тому вибирав лише де 1.
+        if len(price) == 1:
             self.price = price[0][0]
             self.currency = price[0][1]
         self.text = text
 
     def tojson(self):
-        """todo"""
-        pass
+        return json.dumps({'title': self.title, 'url': self.url, 'author': self.author,
+                           'text': self.text, 'price': self.price, 'currency': self.currency})
+
+
+@asyncio.coroutine
+def get(url):
+    response = aiohttp.request(method='GET', url=url)
+    result = yield from asyncio.wait_for(response, timeout=60)
+    body = yield from result.read()
+    return body
 
 
 @asyncio.coroutine
 def parsepage(url):
     """parse everything except for announces"""
-    root = html.fromstring(requests.get(url).text)
+    page = yield from get(url)
+    root = etree.HTML(page)
     themes = root.xpath('//li[contains(@class, "row bg")]/dl[not(contains(@class, "announce"))]')
     instances = []
     for i in themes:
@@ -51,7 +62,8 @@ def parsepage(url):
 @asyncio.coroutine
 def parseannounces(url):
     """parse only announces"""
-    root = html.fromstring(requests.get(url).text)
+    page = yield from get(url)
+    root = etree.HTML(page)
     themes = root.xpath('//li[contains(@class, "row bg")]/dl[contains(@class, "announce")]')
     instances = []
     for i in themes:
@@ -80,6 +92,7 @@ results = loop.run_until_complete(asyncio.wait(tasks))[0]
 instances = []
 for i in results:
     instances += i.result()
+
 print("{0} results".format(len(instances)))
 
 tasks = []
@@ -88,8 +101,12 @@ for i in instances:
 
 results = loop.run_until_complete(asyncio.wait(tasks))
 
-# маэ бути вивід в json але покищо просто print
+string = ''
 for i in instances:
-    print(i.title, i.url, i.author, i.text, i.price, i.currency)
+    string += i.tojson()
 
+with open("json.txt", 'w') as file:
+    file.write(string)
+
+print("Done")
 loop.close()
