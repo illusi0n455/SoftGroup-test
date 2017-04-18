@@ -6,6 +6,8 @@ import json
 
 
 class Themes(object):
+    expr = re.compile(r'([\d,.]+)\s*([a-zA-Zа-яА-Я]+)')
+
     def __init__(self, title, url, author, text='', price=0, currency='грн'):
         self.title = title
         self.url = url
@@ -20,14 +22,21 @@ class Themes(object):
         url = self.url
         page = yield from get(url)
         root = etree.HTML(page)
-        text = root.xpath('//div[@class="content"]')[0].xpath('./text()')
+        text = root.xpath('//div[@class="content"]')[0].xpath('./descendant-or-self::text()')
         text = " ".join(text)
         expr = re.compile(r'([\d,.]+)\s*([a-zA-Zа-яА-Я]+)')
-        price = re.findall(expr, text)
-        price = list(filter(lambda x: True if x[1] in currency else False, price))
-        if len(price) == 1:
-            self.price = price[0][0]
-            self.currency = price[0][1]
+        prices = re.findall(expr, text)
+        prices = list(filter(lambda x: True if x[1] in currency else False, prices))
+        if len(prices) == 1:
+            self.price = prices[0][0]
+            self.currency = prices[0][1]
+        elif len(prices) > 1:
+            maxprice = ('0', "")
+            for price in prices:
+                if price[0] > maxprice[0]:
+                    maxprice = price
+            self.price = maxprice[0]
+            self.currency = maxprice[1]
         self.text = text
 
     def tojson(self):
