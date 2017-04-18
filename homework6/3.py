@@ -6,8 +6,6 @@ import json
 
 
 class Themes(object):
-    expr = re.compile(r'([\d,.]+)\s*([a-zA-Zа-яА-Я]+)')
-
     def __init__(self, title, url, author, text='', price=0, currency='грн'):
         self.title = title
         self.url = url
