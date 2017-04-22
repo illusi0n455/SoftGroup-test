@@ -2,7 +2,8 @@ from lxml import etree
 import re
 import asyncio
 import aiohttp
-import json
+import psycopg2
+import time
 
 
 class Themes(object):
@@ -37,9 +38,10 @@ class Themes(object):
             self.currency = maxprice[1]
         self.text = text
 
-    def tojson(self):
-        return json.dumps({'title': self.title, 'url': self.url, 'author': self.author,
-                           'text': self.text, 'price': self.price, 'currency': self.currency})
+    def todb(self, cur):
+        cur.execute("INSERT INTO theme (title, url, author, text, price, currency) SELECT %s, %s, %s, %s, %s, %s "
+                    "WHERE NOT EXISTS (SELECT * FROM theme where title = %s and author = %s)",
+                    (self.title, self.url, self.author, self.text, self.price, self.currency, self.title, self.author))
 
 
 @asyncio.coroutine
@@ -51,27 +53,14 @@ def get(url):
 
 
 @asyncio.coroutine
-def parsepage(url):
+def parsepage(url, announces=False):
     """parse everything except for announces"""
     page = yield from get(url)
     root = etree.HTML(page)
-    themes = root.xpath('//li[contains(@class, "row bg")]/dl[not(contains(@class, "announce"))]')
-    instances = []
-    for i in themes:
-        theme = i.xpath('.//dt/div/a[@class="topictitle"]')[0]
-        title = theme.text
-        themeurl = "http://forum.overclockers.ua/" + theme.attrib['href'][2:]
-        author = i.xpath('.//dd[@class="author"]/a/text()')[0]
-        instances.append(Themes(title, themeurl, author))
-    return instances
-
-
-@asyncio.coroutine
-def parseannounces(url):
-    """parse only announces"""
-    page = yield from get(url)
-    root = etree.HTML(page)
-    themes = root.xpath('//li[contains(@class, "row bg")]/dl[contains(@class, "announce")]')
+    if announces:
+        themes = root.xpath('//li[contains(@class, "row bg")]/dl[contains(@class, "announce")]')
+    else:
+        themes = root.xpath('//li[contains(@class, "row bg")]/dl[not(contains(@class, "announce"))]')
     instances = []
     for i in themes:
         theme = i.xpath('.//dt/div/a[@class="topictitle"]')[0]
@@ -90,10 +79,10 @@ try:
 except:
     pages = 1
 
-tasks = [parseannounces(url)]
+t0 = time.time()
+tasks = [parsepage(url, announces=True)]
 for i in range(pages):
     tasks.append(parsepage(url + str(i*40)))
-
 results = loop.run_until_complete(asyncio.wait(tasks))[0]
 
 instances = []
@@ -105,15 +94,22 @@ print("{0} results".format(len(instances)))
 tasks = []
 for i in instances:
     tasks.append(i.parsetheme())
-
 results = loop.run_until_complete(asyncio.wait(tasks))
 
-string = ''
-for i in instances:
-    string += i.tojson()
+with psycopg2.connect("dbname='postgres' user='postgres' host='localhost' password='1'") as conn:
+    cur = conn.cursor()
+    cur.execute("""CREATE TABLE IF NOT EXISTS theme(
+           id SERIAL PRIMARY KEY,
+           title TEXT NOT NULL,
+           url TEXT NOT NULL,
+           author TEXT NOT NULL,
+           text TEXT NOT NULL,
+           price TEXT NOT NULL,
+           currency TEXT NOT NULL)""")
+    cur.execute("""CREATE INDEX IF NOT EXISTS title_author_index ON theme(title, author);""")
+    for i in instances:
+        i.todb(cur)
+    conn.commit()
 
-with open("json.txt", 'w') as file:
-    file.write(string)
-
-print("Done")
+print("Done in {0} seconds".format(time.time() - t0))
 loop.close()
