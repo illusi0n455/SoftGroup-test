@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block body %}
+    <table class="table">
+      {% for currency in currencies %}
+      <tr>
+        {% for cell in currency %}
+        <td>
+          {{ cell.value }}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+{% endblock %}

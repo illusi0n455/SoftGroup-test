@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block body %}
+  <script type="text/javascript">
+
+  $(document).ready(function(){
+
+      function sendMessage() {
+          var txt = $('#text_search').val();
+          $.post("/", {text: txt}, function(data) {
+          console.log(data);
+          document.write(data);
+          });
+      };
+
+      // send message from text search field
+      $('#submit').click(function() {
+        console.log('click');
+        sendMessage();
+      });
+
+      jQuery(document).ready(function($) {
+        $(".clickable-row").click(function() {
+          if ($(this).data("href").indexOf("N") <= 0){
+            window.location = $(this).data("href");}
+        });
+      });
+  })
+  </script>
+    <table class="table">
+      {% for currency in currencies %}
+      <tr class='clickable-row' data-href='id_{{ currency[0].value }}'>
+        {% for cell in currency %}
+        <td>
+          {{ cell.value }}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+    <p id="sup"></p>
+    <input type="text" id="text_search" name="text" value="">
+    <input type="submit" id="submit" name="submit" value="Find">
+{% endblock %}
