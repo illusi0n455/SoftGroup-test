@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}{{ detail.id }} {{ detail.author }}{% endblock %}
+{% block body %}
+    <p>{{ detail.title }}</p>
+    <p>{{ detail.author }}</p>
+    <p>{{ detail.text }}</p>
+    <p>{{ detail.price }} {{ detail.currency }}</p>
+{% endblock %}
