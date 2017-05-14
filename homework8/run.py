@@ -4,6 +4,8 @@ from werkzeug import check_password_hash, generate_password_hash
 from werkzeug.routing import BaseConverter
 from app.models import db, User, lower
 from openpyxl import load_workbook
+# from flask_wtf.csrf import CSRFProtect
+import threading
 import scrapper
 
 
@@ -13,6 +15,7 @@ SECRET_KEY = 'you-will-never-guess'
 
 # app initialisation
 app = Flask(__name__)
+# csrf = CSRFProtect(app)
 app.config.from_object(__name__)
 app.config.from_envvar('EXAPP_SETTINGS', silent=True)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:1@localhost:5432/postgres'
@@ -41,9 +44,11 @@ def before_request():
         g.user = User.query.filter_by(user_id=session['user_id']).first()
 
 
-# @app.before_first_request
-# def before_first_request():
-#     scrapper.run()
+@app.before_first_request
+def before_first_request():
+    th = threading.Thread(target=scrapper.run)
+    th.daemon = True
+    th.start()
 
 
 # prevent unauthorized access
