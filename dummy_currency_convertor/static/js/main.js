@@ -47,7 +47,9 @@ function getRates() {
 	from = curFromElement.value;
 	to = curToElement.value;
 	if (from === to) resultElement.value = "Enter another 'to' value";
-	else resultElement.value = currencies[to] * curAmount.value;
+	else if (!isNaN(parseFloat(curAmount.value)) && isFinite(curAmount.value)) 
+		resultElement.value = currencies[to] * curAmount.value;
+	else resultElement.value = currencies[to];
 }
 
 // Load currency rates when page is loaded
